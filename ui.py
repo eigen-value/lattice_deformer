@@ -23,7 +23,10 @@ from .utils import create_root_widget, create_sphere_widget, WGT_PREFIX
 
 def bonify_lattice(lat):
 
-    bone_dimension = 1.0
+    bone_dimension = 0.1
+    scale_vector=lat.matrix_world.to_scale()
+    scale_factor=max(scale_vector.x, scale_vector.y, scale_vector.z)
+    bone_dimension = bone_dimension*scale_factor
     bone_vector = Vector((0.0, 0.0, bone_dimension))
     average_vector = Vector((0, 0, 0))
 
@@ -50,8 +53,10 @@ def bonify_lattice(lat):
         vg=lat.vertex_groups.new(name=eb.name)
         vg.add([i], weight=1, type='ADD')
 
+    z_positions = [eb.head.z for eb in edit_bones[1:]]
     root.head = average_vector/len(pts)
-    root.tail = root.head + Vector((0.0, bone_dimension, 0.0))
+    root.head.z = min(z_positions)
+    root.tail = root.head + Vector((0.0, scale_factor, 0.0))
 
     # Make Widgets
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -60,10 +65,11 @@ def bonify_lattice(lat):
         if pb.name == name:
             create_root_widget(rig, pb.name, bone_transform_name=None)
             pb.custom_shape = bpy.data.objects[WGT_PREFIX + pb.name]
+            pb.bone.show_wire = True
         else:
             create_sphere_widget(rig, pb.name, bone_transform_name=None)
             pb.custom_shape = bpy.data.objects[WGT_PREFIX + pb.name]
-
+            pb.bone.show_wire = True
 
 
 class VIEW3D_PT_LatticeDeformerPanel(bpy.types.Panel):
@@ -99,6 +105,7 @@ class OBJECT_OT_CreateLatticeDeformer(bpy.types.Operator):
 def register():
     bpy.utils.register_class(OBJECT_OT_CreateLatticeDeformer)
     bpy.utils.register_class(VIEW3D_PT_LatticeDeformerPanel)
+
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_CreateLatticeDeformer)
