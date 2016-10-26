@@ -23,17 +23,20 @@ from .utils import create_root_widget, create_sphere_widget, WGT_PREFIX
 
 def bonify_lattice(lat):
 
+    scn = bpy.context.scene
+
     bone_dimension = 0.1
     scale_vector=lat.matrix_world.to_scale()
-    scale_factor=max(scale_vector.x, scale_vector.y, scale_vector.z)
+    scale_factor=sum([scale_vector.x, scale_vector.y, scale_vector.z])/3
     bone_dimension = bone_dimension*scale_factor
     bone_vector = Vector((0.0, 0.0, bone_dimension))
     average_vector = Vector((0, 0, 0))
 
     pts = lat.data.points
-    lat.modifiers.new(name="Armature", type='ARMATURE')
+    lat.modifiers.new(name='Armature', type='ARMATURE')
     bpy.ops.object.armature_add()
     rig=bpy.context.object
+    rig.name = scn.LatticeDeformerName
     lat.modifiers[-1].object = rig
 
     bpy.ops.object.mode_set(mode='EDIT')
@@ -42,7 +45,9 @@ def bonify_lattice(lat):
     edit_bones = rig.data.edit_bones
 
     root = edit_bones[0]
-    name = root.name
+    root.name = 'root_' + scn.LatticeDeformerName
+    root_name = root.name
+    name = 'tweak_' + scn.LatticeDeformerName
 
     for i, pt in enumerate(pts):
         eb = rig.data.edit_bones.new(name)
@@ -50,7 +55,7 @@ def bonify_lattice(lat):
         average_vector += eb.head
         eb.tail = eb.head + bone_vector
         eb.parent = root
-        vg=lat.vertex_groups.new(name=eb.name)
+        vg = lat.vertex_groups.new(name=eb.name)
         vg.add([i], weight=1, type='ADD')
 
     z_positions = [eb.head.z for eb in edit_bones[1:]]
@@ -62,7 +67,7 @@ def bonify_lattice(lat):
     bpy.ops.object.mode_set(mode='OBJECT')
     pbones = rig.pose.bones
     for pb in pbones:
-        if pb.name == name:
+        if pb.name == root_name:
             create_root_widget(rig, pb.name, bone_transform_name=None)
             pb.custom_shape = bpy.data.objects[WGT_PREFIX + pb.name]
             pb.bone.show_wire = True
@@ -80,9 +85,11 @@ class VIEW3D_PT_LatticeDeformerPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        scn = context.scene
 
         row = layout.row(align=True)
         row.operator('lattdef.make_lattdef', text='Make Lattice Deformer')
+        row.prop(scn, 'LatticeDeformerName', text = '', icon = 'ARMATURE_DATA')
 
 
 class OBJECT_OT_CreateLatticeDeformer(bpy.types.Operator):
@@ -94,7 +101,7 @@ class OBJECT_OT_CreateLatticeDeformer(bpy.types.Operator):
         scn = context.scene
 
         lat = bpy.context.active_object
-        if lat.name not in bpy.data.lattices.keys():
+        if lat.data.name not in bpy.data.lattices:
             return {'FINISHED'}
         else:
             bonify_lattice(lat)

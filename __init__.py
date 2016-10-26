@@ -33,12 +33,13 @@ if "bpy" in locals():
 
 else:
     from . import ui
+    import bpy
 
 
 ######## REGISTER ########
 
 def register():
-
+    bpy.types.Scene.LatticeDeformerName = bpy.props.StringProperty(name='LatDef Name',default='LatDef',description='Name of Lattice Deormer to Generate')
     ui.register()
 
 def unregister():
